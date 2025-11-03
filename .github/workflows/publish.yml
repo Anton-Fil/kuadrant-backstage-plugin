@@ -1,15 +1,21 @@
 name: Publish to NPM
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+  release:
+    types: [published]  # trigger on GitHub Release creation
+  pull_request:
+    types: [closed]  # tigger when PR is closed
+    branches:
+      - main
+  workflow_dispatch:  # alow manual trigger
 
 jobs:
   publish:
     name: Publish Packages
     runs-on: ubuntu-latest
+
+    # only run if release created, manual trigger, or PR was merged (not just closed)
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
 
     permissions:
       contents: read
@@ -18,6 +24,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,34 +37,76 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Extract version from tag
+      - name: Determine version
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing version: $VERSION"
+          # Read base version from package.json
+          BASE_VERSION=$(node -p "require('./plugins/kuadrant/package.json').version")
 
-      - name: Verify package.json versions match tag
+          # Get short git commit SHA
+          GIT_SHA=$(git rev-parse --short HEAD)
+
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            # Official release - use version from release tag
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "Official Release: $VERSION"
+            echo "type=official" >> $GITHUB_OUTPUT
+          else
+            # Development release - append git SHA
+            VERSION="${BASE_VERSION}-${GIT_SHA}"
+            echo "Development Release (merge to main): $VERSION"
+            echo "type=development" >> $GITHUB_OUTPUT
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "base-version=$BASE_VERSION" >> $GITHUB_OUTPUT
+          echo "git-sha=$GIT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Verify base version consistency
         run: |
+          # Ensure both plugins have the same base version
           FRONTEND_VERSION=$(node -p "require('./plugins/kuadrant/package.json').version")
           BACKEND_VERSION=$(node -p "require('./plugins/kuadrant-backend/package.json').version")
-          TAG_VERSION="${{ steps.version.outputs.version }}"
+          BASE_VERSION="${{ steps.version.outputs.base-version }}"
 
-          echo "Tag version: $TAG_VERSION"
+          echo "Base version: $BASE_VERSION"
           echo "Frontend version: $FRONTEND_VERSION"
           echo "Backend version: $BACKEND_VERSION"
 
-          if [ "$FRONTEND_VERSION" != "$TAG_VERSION" ]; then
-            echo "Frontend package.json version ($FRONTEND_VERSION) doesn't match tag ($TAG_VERSION)"
+          if [ "$FRONTEND_VERSION" != "$BASE_VERSION" ]; then
+            echo "Frontend package.json version ($FRONTEND_VERSION) doesn't match base version ($BASE_VERSION)"
             exit 1
           fi
 
-          if [ "$BACKEND_VERSION" != "$TAG_VERSION" ]; then
-            echo "Backend package.json version ($BACKEND_VERSION) doesn't match tag ($TAG_VERSION)"
+          if [ "$BACKEND_VERSION" != "$BASE_VERSION" ]; then
+            echo "Backend package.json version ($BACKEND_VERSION) doesn't match base version ($BASE_VERSION)"
             exit 1
           fi
 
-          echo "All versions match!"
+          echo "All base versions match!"
+
+      - name: Check if packages already published
+        id: check-published
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Check if frontend package exists in npm registry
+          if npm view @kuadrant/plugin-kuadrant@$VERSION version 2>/dev/null; then
+            echo "@kuadrant/plugin-kuadrant@$VERSION already exists in npm"
+            echo "frontend-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "@kuadrant/plugin-kuadrant@$VERSION ready to publish"
+            echo "frontend-exists=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check if backend package exists in npm registry
+          if npm view @kuadrant/plugin-kuadrant-backend@$VERSION version 2>/dev/null; then
+            echo "@kuadrant/plugin-kuadrant-backend@$VERSION already exists in npm"
+            echo "backend-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "@kuadrant/plugin-kuadrant-backend@$VERSION ready to publish"
+            echo "backend-exists=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -64,25 +114,93 @@ jobs:
       - name: Build packages
         run: yarn build
 
+      - name: Update package versions for publishing
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Update frontend package version (only in CI, not committed to git)
+          cd plugins/kuadrant
+          npm pkg set version=$VERSION
+          echo "Frontend version set to $VERSION"
+
+          # Update backend package version (only in CI, not committed to git)
+          cd ../kuadrant-backend
+          npm pkg set version=$VERSION
+          echo "Backend version set to $VERSION"
+
       - name: Publish frontend plugin
+        if: steps.check-published.outputs.frontend-exists == 'false'
         run: |
           cd plugins/kuadrant
-          npm publish --provenance --access public
+          RELEASE_TYPE="${{ steps.version.outputs.type }}"
+
+          if [ "$RELEASE_TYPE" == "official" ]; then
+            echo "Publishing official frontend plugin..."
+            npm publish --provenance --access public --tag latest
+          else
+            echo "Publishing development frontend plugin..."
+            npm publish --provenance --access public --tag dev
+          fi
+
+          echo "Frontend plugin published successfully"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_GIT }}
 
+      - name: Skip frontend publish
+        if: steps.check-published.outputs.frontend-exists == 'true'
+        run: |
+          echo "Skipping frontend plugin publish (already exists)"
+
       - name: Publish backend plugin
+        if: steps.check-published.outputs.backend-exists == 'false'
         run: |
           cd plugins/kuadrant-backend
-          npm publish --provenance --access public
+          RELEASE_TYPE="${{ steps.version.outputs.type }}"
+
+          if [ "$RELEASE_TYPE" == "official" ]; then
+            echo "Publishing official backend plugin..."
+            npm publish --provenance --access public --tag latest
+          else
+            echo "Publishing development backend plugin..."
+            npm publish --provenance --access public --tag dev
+          fi
+
+          echo "Backend plugin published successfully"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_GIT }}
+
+      - name: Skip backend publish
+        if: steps.check-published.outputs.backend-exists == 'true'
+        run: |
+          echo "Skipping backend plugin publish (already exists)"
 
       - name: Summary
         run: |
-          echo "## 📦 Published Packages" >> $GITHUB_STEP_SUMMARY
+          VERSION="${{ steps.version.outputs.version }}"
+          RELEASE_TYPE="${{ steps.version.outputs.type }}"
+          FRONTEND_EXISTS="${{ steps.check-published.outputs.frontend-exists }}"
+          BACKEND_EXISTS="${{ steps.check-published.outputs.backend-exists }}"
+
+          echo "##  Publish Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$RELEASE_TYPE" == "official" ]; then
+            echo "**Type:**Official Release (tag: latest)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Type:** Development Release - Merged to main (tag: dev)" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "-[@kuadrant/plugin-kuadrant@${{ steps.version.outputs.version }}](https://www.npmjs.com/package/@kuadrant/plugin-kuadrant)" >> $GITHUB_STEP_SUMMARY
-          echo "-[@kuadrant/plugin-kuadrant-backend@${{ steps.version.outputs.version }}](https://www.npmjs.com/package/@kuadrant/plugin-kuadrant-backend)" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FRONTEND_EXISTS" == "false" ]; then
+            echo "- [@kuadrant/plugin-kuadrant@$VERSION](https://www.npmjs.com/package/@kuadrant/plugin-kuadrant) - **Published**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [@kuadrant/plugin-kuadrant@$VERSION](https://www.npmjs.com/package/@kuadrant/plugin-kuadrant) - **Already exists**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$BACKEND_EXISTS" == "false" ]; then
+            echo "- [@kuadrant/plugin-kuadrant-backend@$VERSION](https://www.npmjs.com/package/@kuadrant/plugin-kuadrant-backend) - **Published**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- [@kuadrant/plugin-kuadrant-backend@$VERSION](https://www.npmjs.com/package/@kuadrant/plugin-kuadrant-backend) - **Already exists**" >> $GITHUB_STEP_SUMMARY
+          fi
