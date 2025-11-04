@@ -4,10 +4,10 @@ on:
   release:
     types: [published]  # trigger on GitHub Release creation
   pull_request:
-    types: [closed]  # tigger when PR is closed
+    types: [closed]  # trigger when PR is closed
     branches:
       - main
-  workflow_dispatch:  # alow manual trigger
+  workflow_dispatch:  # allow manual trigger
 
 jobs:
   publish:
