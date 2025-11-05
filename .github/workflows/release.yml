@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   release:
     types: [published]
   workflow_dispatch:
@@ -39,11 +36,6 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/}
             VERSION=${VERSION#v}
             echo "Manual release detected: $VERSION"
-          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            # Tag pushed - extract version from tag
-            VERSION=${GITHUB_REF#refs/tags/}
-            VERSION=${VERSION#v}
-            echo "Tag pushed: $VERSION"
           else
             # Manual workflow dispatch - use version from package.json
             VERSION=$(node -p "require('./plugins/kuadrant/package.json').version")
@@ -66,15 +58,6 @@ jobs:
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
-
-          # Determine if pre-release
-          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "prerelease=false" >> $GITHUB_OUTPUT
-            echo "Stable release"
-          else
-            echo "prerelease=true" >> $GITHUB_OUTPUT
-            echo "Pre-release"
-          fi
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -164,7 +147,6 @@ jobs:
           name: Release ${{ steps.version.outputs.tag }}
           body_path: CHANGELOG.md
           draft: false
-          prerelease: ${{ steps.version.outputs.prerelease }}
           files: |
             *.tgz
         env:
@@ -174,23 +156,15 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.tag }}"
-          IS_PRERELEASE="${{ steps.version.outputs.prerelease }}"
 
           echo "## GitHub Release Created" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** $TAG" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$IS_PRERELEASE" == "true" ]; then
-            echo "**Type:** Pre-release" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "**Type:** Stable release" >> $GITHUB_STEP_SUMMARY
-          fi
-
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Artifacts:**" >> $GITHUB_STEP_SUMMARY
           echo "- kuadrant-plugin-kuadrant-${VERSION}.tgz" >> $GITHUB_STEP_SUMMARY
           echo "- kuadrant-plugin-kuadrant-backend-${VERSION}.tgz" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Next steps:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Publish workflow will automatically publish to npm" >> $GITHUB_STEP_SUMMARY
-          echo "- Release URL: https://github.com/${{ github.repository }}/releases/tag/$TAG" >> $GITHUB_STEP_SUMMARY
+          echo "**NPM Packages:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [@kuadrant/plugin-kuadrant@${VERSION}](https://www.npmjs.com/package/@kuadrant/plugin-kuadrant/v/${VERSION})" >> $GITHUB_STEP_SUMMARY
+          echo "- [@kuadrant/plugin-kuadrant-backend@${VERSION}](https://www.npmjs.com/package/@kuadrant/plugin-kuadrant-backend/v/${VERSION})" >> $GITHUB_STEP_SUMMARY
