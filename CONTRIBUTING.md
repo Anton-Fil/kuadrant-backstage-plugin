@@ -1,5 +1,19 @@
 # Contributing
 
+For general contribution guidelines, PR requirements, and issue triage rules, see the [Kuadrant contributing guide](https://github.com/Kuadrant/.github/blob/main/CONTRIBUTING.md).
+
+## Issue Policy
+
+**Do not start work on an issue unless it has been assigned to you by a maintainer.**
+
+Issues go through a triage and planning process before they are ready for contribution. Working on unassigned issues — whether manually or via AI coding agents — wastes your time and ours.
+
+**Pull requests submitted against unassigned issues will be automatically closed and will not be reopened.**
+
+If you're interested in contributing to an issue, leave a comment and wait for a maintainer to assign it to you before starting any work.
+
+Issues labelled `maintainers-only` are reserved for the maintainer team and are not available for external contribution.
+
 We are excited to see you want to be a part of this project by contributing. Here is some information on how to get started, as well as some knowledge on our requirements.
 
 ## Get Started
