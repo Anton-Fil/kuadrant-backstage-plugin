@@ -52,7 +52,7 @@
     "prepack": "backstage-cli package prepack",
     "postpack": "backstage-cli package postpack",
     "tsc": "tsc",
-    "export-dynamic": "rhdh-cli plugin export",
+    "export-dynamic": "rhdh-cli plugin export && cp -r dist-dynamic/dist-scalprum dist-scalprum",
     "export-dynamic:clean": "run export-dynamic --clean"
   },
   "dependencies": {
