@@ -396,7 +396,7 @@ plugins:
     pluginConfig:
       dynamicPlugins:
         frontend:
-          internal.plugin-kuadrant:
+          kuadrant.kuadrant-backstage-plugin-frontend:
             apiFactories:
               - importName: kuadrantApiFactory
             appIcons:
@@ -824,7 +824,7 @@ plugins:
     pluginConfig:
       dynamicPlugins:
         frontend:
-          internal.plugin-kuadrant:
+          kuadrant.kuadrant-backstage-plugin-frontend:
             apiFactories:
               - importName: kuadrantApiFactory
             appIcons:

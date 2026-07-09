@@ -146,7 +146,7 @@ global:
         pluginConfig:
           dynamicPlugins:
             frontend:
-              internal.plugin-kuadrant:
+              kuadrant.kuadrant-backstage-plugin-frontend:
                 appIcons:
                   - name: kuadrantIcon
                     importName: KuadrantIcon
