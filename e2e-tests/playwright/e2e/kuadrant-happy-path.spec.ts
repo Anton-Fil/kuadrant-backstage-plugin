@@ -309,20 +309,17 @@ test.describe("Kuadrant Happy Path - Full API Lifecycle", () => {
     if (await search.count()) {
       await search.fill(testData.name);
     }
+    // waitForApiKeysPageReady above already proved the page rendered (heading
+    // visible, spinners cleared), so a zero count here is a real "nothing for
+    // owner1", not an empty error page. Do NOT also assert an empty-state
+    // message or a table element: owner2 legitimately has requests for its own
+    // apis (other specs seed those concurrently under fullyParallel), and when
+    // the queue is empty the page renders an empty-state with no <table> at all -
+    // both states are valid, so asserting either one is flaky.
     await expect(
       page.locator("tbody tr").filter({ hasText: testData.name }),
       "Owner2 should see no requests for owner1's api",
     ).toHaveCount(0, { timeout: TIMEOUTS.DEFAULT });
-    // the zero count must be a real "nothing for owner1", not an empty error
-    // page. waitForApiKeysPageReady above already asserted the heading rendered
-    // and spinners cleared, and the queue table is present here - together that
-    // proves the page loaded. Do NOT assert an empty-state message: owner2
-    // legitimately has requests for its own apis, which other specs seed
-    // concurrently under fullyParallel, so the queue is not globally empty.
-    await expect(
-      page.locator("table").first(),
-      "the approval queue should have rendered",
-    ).toBeVisible({ timeout: TIMEOUTS.DEFAULT });
   });
 
   test("6. admin approves consumer1's request", async ({ page }) => {

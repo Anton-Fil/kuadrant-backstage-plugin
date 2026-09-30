@@ -26,7 +26,9 @@ export default defineConfig({
    * race) and shared-state specs opt back into serial with
    * test.describe.configure({ mode: "serial" }) - e.g. the happy-path lifecycle. */
   fullyParallel: true,
-  workers: 2,
+  /* Matches kuadrant-console-plugin's e2e config: fullyParallel + 3 workers on a
+   * stock ubuntu-latest, no larger runner needed. */
+  workers: 3,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ["html"],
