@@ -313,15 +313,15 @@ test.describe("Kuadrant Happy Path - Full API Lifecycle", () => {
       page.locator("tbody tr").filter({ hasText: testData.name }),
       "Owner2 should see no requests for owner1's api",
     ).toHaveCount(0, { timeout: TIMEOUTS.DEFAULT });
-    // and the page says so, rather than the count being zero because nothing
-    // rendered: an empty queue shows "No API keys found", a search that matches
-    // nothing shows the table's own "No records to display".
+    // the zero count must be a real "nothing for owner1", not an empty error
+    // page. waitForApiKeysPageReady above already asserted the heading rendered
+    // and spinners cleared, and the queue table is present here - together that
+    // proves the page loaded. Do NOT assert an empty-state message: owner2
+    // legitimately has requests for its own apis, which other specs seed
+    // concurrently under fullyParallel, so the queue is not globally empty.
     await expect(
-      page
-        .getByText(/no api keys found/i)
-        .or(page.getByText(/no records to display/i))
-        .first(),
-      "the queue should report nothing matching owner1's api",
+      page.locator("table").first(),
+      "the approval queue should have rendered",
     ).toBeVisible({ timeout: TIMEOUTS.DEFAULT });
   });
 

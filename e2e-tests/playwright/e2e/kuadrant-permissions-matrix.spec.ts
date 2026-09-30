@@ -326,11 +326,15 @@ test.describe("Kuadrant Permissions Matrix", () => {
     }) => {
       // seed a request first: a heading renders whether or not the admin can
       // actually read anyone's requests, so the heading alone proved nothing.
-      // owner2's api, to show the admin is not limited to their own.
+      // owner2's api, to show the admin is not limited to their own. seed as
+      // consumer2 so this row is distinct from the consumer1 row the sibling
+      // "admin CAN approve" test approves - otherwise, under parallel workers,
+      // that approval could remove the very row this test asserts is visible.
       await seedPendingApiKeyRequest(
         browser,
         `admin sees pending ${generateTestId()}`,
         owner2Api,
+        "consumer2",
       );
 
       await loginAs(page, "admin@kuadrant.local");
@@ -350,8 +354,12 @@ test.describe("Kuadrant Permissions Matrix", () => {
       await narrowTable(page, owner2Api);
 
       await expect(
-        page.locator("tbody tr").filter({ hasText: owner2Api }).first(),
-        "Admin should see the consumer's pending request for owner2's api",
+        page
+          .locator("tbody tr")
+          .filter({ hasText: owner2Api })
+          .filter({ hasText: /consumer2/i })
+          .first(),
+        "Admin should see consumer2's pending request for owner2's api",
       ).toBeVisible({ timeout: TIMEOUTS.VERY_SLOW });
     });
 
@@ -546,11 +554,15 @@ test.describe("Kuadrant Permissions Matrix", () => {
     }) => {
       // this test used to pass with nothing to approve. seed a request against
       // an api the admin does not own, so the approval is exercised end to end
-      // and specifically across an ownership boundary.
+      // and specifically across an ownership boundary. seed as consumer1 and
+      // approve only consumer1's rows below, so this test and the sibling "admin
+      // CAN see" test (which watches consumer2's row) never touch each other's
+      // requests under parallel workers.
       await seedPendingApiKeyRequest(
         browser,
         `admin approves ${generateTestId()}`,
         owner2Api,
+        "consumer1",
       );
 
       await loginAs(page, "admin@kuadrant.local");
@@ -566,6 +578,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
       const pendingRows = page
         .locator("tbody tr")
         .filter({ hasText: owner2Api })
+        .filter({ hasText: /consumer1/i })
         .filter({ has: page.getByRole("button", { name: /^approve$/i }) });
 
       await expect(

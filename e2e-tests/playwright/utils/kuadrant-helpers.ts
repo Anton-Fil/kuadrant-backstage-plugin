@@ -351,11 +351,15 @@ export async function requestApiKey(
  * @param browser - The Playwright Browser, from the test's `browser` fixture
  * @param useCase - Use-case text, recorded on the request
  * @param apiProductName - Name of the APIProduct to request access to
+ * @param consumer - Which consumer persona makes the request. Two tests seeding
+ *   against the same api must use different consumers so that one approving its
+ *   own row cannot remove the row the other is asserting on under parallel runs.
  */
 export async function seedPendingApiKeyRequest(
   browser: Browser,
   useCase: string,
   apiProductName: string,
+  consumer: string = "consumer1",
 ): Promise<void> {
   // a manually created context inherits nothing from the config's `use` block,
   // so mirror the baseURL (loginAs starts with a relative goto) and the https
@@ -366,7 +370,7 @@ export async function seedPendingApiKeyRequest(
   });
   try {
     const page = await context.newPage();
-    await loginAs(page, "consumer1");
+    await loginAs(page, consumer);
     await requestApiKey(page, useCase, apiProductName);
   } finally {
     await context.close();

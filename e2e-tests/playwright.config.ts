@@ -21,7 +21,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Single worker to avoid DEX popup login race conditions */
+  /* Run tests within a file in parallel, not just across files. Safe now that
+   * every spec authenticates from a pre-saved session (no per-test dex popup
+   * race) and shared-state specs opt back into serial with
+   * test.describe.configure({ mode: "serial" }) - e.g. the happy-path lifecycle. */
+  fullyParallel: true,
   workers: 2,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
