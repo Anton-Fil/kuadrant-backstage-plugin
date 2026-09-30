@@ -1,5 +1,5 @@
 import { Page, Locator, Browser, expect } from "@playwright/test";
-import { Common } from "./common";
+import { loginAs } from "../support/auth/login-as";
 
 // timeout constants for consistent test behaviour
 export const TIMEOUTS = {
@@ -358,15 +358,15 @@ export async function seedPendingApiKeyRequest(
   apiProductName: string,
 ): Promise<void> {
   // a manually created context inherits nothing from the config's `use` block,
-  // so mirror the baseURL (dexQuickLogin starts with a relative goto) and the
-  // https override the rest of the suite runs with.
+  // so mirror the baseURL (loginAs starts with a relative goto) and the https
+  // override the rest of the suite runs with.
   const context = await browser.newContext({
     baseURL: process.env.BASE_URL || "http://localhost:3000",
     ignoreHTTPSErrors: true,
   });
   try {
     const page = await context.newPage();
-    await new Common(page).dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1");
     await requestApiKey(page, useCase, apiProductName);
   } finally {
     await context.close();
@@ -416,8 +416,7 @@ export class KuadrantTestDataBuilder {
     ownerEmail: string,
     data: TestAPIProduct,
   ): Promise<TestAPIProduct> {
-    const common = new Common(this.page);
-    await common.dexQuickLogin(ownerEmail);
+    await loginAs(this.page, ownerEmail);
     await this.page.goto("/kuadrant/api-products");
     await waitForKuadrantPageReady(this.page);
 
@@ -473,8 +472,7 @@ export class KuadrantTestDataBuilder {
     data: TestAPIProduct,
   ): Promise<void> {
     try {
-      const common = new Common(this.page);
-      await common.dexQuickLogin(ownerEmail);
+      await loginAs(this.page, ownerEmail);
       await this.page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(this.page);
 

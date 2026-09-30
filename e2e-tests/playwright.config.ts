@@ -15,12 +15,14 @@ if (args.some((arg) => arg.includes("showcase-localization-fr"))) {
 export default defineConfig({
   timeout: 90 * 1000,
   testDir: "./playwright",
+  /* Pre-authenticate each persona once so specs skip the per-test popup login */
+  globalSetup: "./playwright/global-setup.ts",
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Single worker to avoid DEX popup login race conditions */
-  workers: 1,
+  workers: 3,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ["html"],

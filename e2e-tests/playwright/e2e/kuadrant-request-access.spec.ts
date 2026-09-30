@@ -1,5 +1,5 @@
 import { test, expect } from "../fixtures/test";
-import { Common } from "../utils/common";
+import { loginAs } from "../support/auth/login-as";
 import {
   TIMEOUTS,
   apiKeyTableTotal,
@@ -27,8 +27,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   test("should display Request Access button on My API Keys page", async ({
     page,
   }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -43,8 +42,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   test("should open SimpleRequestAccessDialog when Request Access is clicked", async ({
     page,
   }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -66,8 +64,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   });
 
   test("should display API dropdown with published APIs", async ({ page }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -105,8 +102,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   test("should populate tiers dropdown after selecting an API", async ({
     page,
   }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -152,8 +148,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   });
 
   test("should show tier limits in dropdown options", async ({ page }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -189,8 +184,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   test("should enable Submit button only when API and Tier are selected", async ({
     page,
   }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -228,8 +222,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   });
 
   test("should allow entering a use case", async ({ page }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -257,8 +250,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   test("should successfully submit a request and close dialog", async ({
     page,
   }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -294,8 +286,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   });
 
   test("should show loading state while submitting", async ({ page }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -337,8 +328,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   });
 
   test("should reset form when Cancel is clicked", async ({ page }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -375,8 +365,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   });
 
   test("should display helper text for fields", async ({ page }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
@@ -415,8 +404,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
     test("should display error message when request fails", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/my-api-keys");
       await waitForApiKeysPageReady(page);
 
@@ -465,8 +453,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
     test("should display user-friendly error for email validation failure", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/my-api-keys");
       await waitForApiKeysPageReady(page);
 
@@ -518,8 +505,7 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
   test("should refresh My API Keys table after successful request", async ({
     page,
   }) => {
-    const common = new Common(page);
-    await common.dexQuickLogin("consumer1@kuadrant.local");
+    await loginAs(page, "consumer1@kuadrant.local");
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 

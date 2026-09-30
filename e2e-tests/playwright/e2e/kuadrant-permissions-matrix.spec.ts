@@ -1,5 +1,5 @@
 import { test, expect, Page } from "../fixtures/test";
-import { Common } from "../utils/common";
+import { loginAs } from "../support/auth/login-as";
 import {
   TIMEOUTS,
   expectButtonPermission,
@@ -55,8 +55,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
 
   test.describe("APIProduct Permissions", () => {
     test("kuadrant.apiproduct.create - admin CAN create", async ({ page }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("admin@kuadrant.local");
+      await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -69,8 +68,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     });
 
     test("kuadrant.apiproduct.create - owner CAN create", async ({ page }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("owner1@kuadrant.local");
+      await loginAs(page, "owner1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -85,8 +83,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apiproduct.create - consumer CANNOT create", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -101,8 +98,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apiproduct.list - admin CAN list all products", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("admin@kuadrant.local");
+      await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -118,8 +114,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apiproduct.list - owner CAN list all products", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("owner1@kuadrant.local");
+      await loginAs(page, "owner1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -135,8 +130,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apiproduct.list - consumer CAN list all products", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -152,8 +146,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apiproduct.update.all - admin CAN edit any product", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("admin@kuadrant.local");
+      await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -174,8 +167,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apiproduct.update.own - owner sees edit button only on own products", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("owner1@kuadrant.local");
+      await loginAs(page, "owner1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -211,8 +203,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apiproduct.delete.all - admin CAN delete any product", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("admin@kuadrant.local");
+      await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -233,8 +224,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apiproduct.delete - consumer CANNOT delete any product", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -262,8 +252,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apikey.create - admin CAN request access", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("admin@kuadrant.local");
+      await loginAs(page, "admin@kuadrant.local");
       await page.goto("/catalog/default/api/toystore-api");
       await page.waitForURL(/\/catalog\/.*\/api\/toystore-api/, {
         timeout: TIMEOUTS.VERY_SLOW,
@@ -286,8 +275,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apikey.create - owner CAN request access", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("owner1@kuadrant.local");
+      await loginAs(page, "owner1@kuadrant.local");
 
       await page.goto("/catalog/default/api/toystore-api");
       await page.waitForURL(/\/catalog\/.*\/api\/toystore-api/, {
@@ -311,8 +299,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apikey.create - consumer CAN request access", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
 
       await page.goto("/catalog/default/api/toystore-api");
       await page.waitForURL(/\/catalog\/.*\/api\/toystore-api/, {
@@ -346,8 +333,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
         owner2Api,
       );
 
-      const common = new Common(page);
-      await common.dexQuickLogin("admin@kuadrant.local");
+      await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-key-approval");
       await waitForApiKeysPageReady(page);
 
@@ -381,8 +367,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
         owner1Api,
       );
 
-      const common = new Common(page);
-      await common.dexQuickLogin("owner1@kuadrant.local");
+      await loginAs(page, "owner1@kuadrant.local");
       await page.goto("/kuadrant/api-key-approval");
       await waitForApiKeysPageReady(page);
 
@@ -407,8 +392,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apikey.approve - consumer CANNOT access approval page", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
 
       // Consumer should not be able to access the approval page
       // They should either get a 403 or be redirected
@@ -430,8 +414,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apikey.read.own - consumer CAN see My API Keys page", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/my-api-keys");
 
       const heading = page
@@ -446,8 +429,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("kuadrant.apikey.delete.own - consumer sees My API Keys page with filters", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/my-api-keys");
 
       const heading = page
@@ -472,8 +454,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("owner2 CANNOT edit toystore API (owned by owner1)", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("owner2@kuadrant.local");
+      await loginAs(page, "owner2@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -503,8 +484,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("owner2 CANNOT delete toystore API (owned by owner1)", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("owner2@kuadrant.local");
+      await loginAs(page, "owner2@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -534,8 +514,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("admin CAN edit toystore API (has update.all permission)", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("admin@kuadrant.local");
+      await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -574,8 +553,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
         owner2Api,
       );
 
-      const common = new Common(page);
-      await common.dexQuickLogin("admin@kuadrant.local");
+      await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-key-approval");
       await waitForApiKeysPageReady(page);
 
@@ -646,8 +624,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("consumer CANNOT see edit buttons on API products table", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -670,8 +647,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     test("consumer CANNOT see delete buttons on API products table", async ({
       page,
     }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -691,8 +667,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     });
 
     test("consumer CANNOT see approve/reject buttons", async ({ page }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -715,8 +690,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     });
 
     test("consumer CAN see Policy filter or column", async ({ page }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("consumer1@kuadrant.local");
+      await loginAs(page, "consumer1@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
@@ -745,8 +719,7 @@ test.describe("Kuadrant Permissions Matrix", () => {
     });
 
     test("admin CAN see Policy filter and column", async ({ page }) => {
-      const common = new Common(page);
-      await common.dexQuickLogin("admin@kuadrant.local");
+      await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-products");
       await waitForKuadrantPageReady(page);
 
