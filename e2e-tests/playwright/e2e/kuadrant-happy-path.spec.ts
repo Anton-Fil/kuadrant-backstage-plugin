@@ -61,21 +61,23 @@ test.describe("Kuadrant Happy Path - Full API Lifecycle", () => {
 
       // matched on the id, which both name and displayName carry: the search
       // indexes the resource name, but the row renders the display name.
-      const apiProductRow = page
-        .locator("tbody tr")
-        .filter({ hasText: testData.id })
-        .first();
-      await apiProductRow.waitFor({ state: "visible", timeout: TIMEOUTS.SLOW });
-
-      await apiProductRow
-        .getByRole("button", { name: /delete api product/i })
-        .click();
-
+      //
+      // the products table re-renders as its data settles, which can detach the
+      // row mid-click ("element was detached from the DOM"). Re-resolve the row
+      // and retry the open until the confirm dialog is actually up, skipping the
+      // click if a prior attempt already opened it.
       const confirmDialog = page.getByRole("dialog");
-      await confirmDialog.waitFor({
-        state: "visible",
-        timeout: TIMEOUTS.DEFAULT,
-      });
+      await expect(async () => {
+        if (!(await confirmDialog.isVisible())) {
+          await page
+            .locator("tbody tr")
+            .filter({ hasText: testData.id })
+            .first()
+            .getByRole("button", { name: /delete api product/i })
+            .click({ timeout: TIMEOUTS.DEFAULT });
+        }
+        await expect(confirmDialog).toBeVisible({ timeout: TIMEOUTS.QUICK });
+      }).toPass({ timeout: TIMEOUTS.SLOW, intervals: [500, 1000, 2000] });
       await confirmDialog.getByRole("textbox").fill(testData.name);
       await confirmDialog.getByRole("button", { name: /delete/i }).click();
       await confirmDialog.waitFor({ state: "hidden", timeout: TIMEOUTS.SLOW });

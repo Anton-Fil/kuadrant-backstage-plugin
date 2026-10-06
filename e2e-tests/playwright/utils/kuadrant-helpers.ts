@@ -264,10 +264,19 @@ export async function openSelect(
   container: Locator,
   testId: string,
 ): Promise<void> {
-  const listbox = await openMuiSelect(page, container.getByTestId(testId));
-  await expect(listbox.getByRole("option").first()).toBeVisible({
-    timeout: TIMEOUTS.DEFAULT,
-  });
+  const select = container.getByTestId(testId);
+  // Options can arrive after the menu opens - e.g. tiers are fetched only once
+  // an API is chosen - and a re-render as that fetch settles can dismiss an
+  // open-but-empty menu. openMuiSelect only gets the listbox visible, so it can
+  // return in the instant before such a re-render closes it, leaving zero
+  // options. Retry the whole open so a dismissed menu is reopened once the
+  // options have actually loaded.
+  await expect(async () => {
+    await openMuiSelect(page, select);
+    await expect(
+      page.getByRole("listbox").getByRole("option").first(),
+    ).toBeVisible({ timeout: TIMEOUTS.DEFAULT });
+  }).toPass({ timeout: TIMEOUTS.SLOW, intervals: [300, 500, 1000] });
 }
 
 /**
