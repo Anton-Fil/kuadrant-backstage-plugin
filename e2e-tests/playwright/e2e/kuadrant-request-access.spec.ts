@@ -509,6 +509,18 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
     await page.goto("/kuadrant/my-api-keys");
     await waitForApiKeysPageReady(page);
 
+    // narrow the table to targetApi before taking the baseline: consumer1's key
+    // table is shared state, and under fullyParallel other specs create consumer1
+    // keys for other products concurrently - so a whole-table +1 count sees their
+    // rows too and flakes (Expected 14, Received 15). owner1-payment-api is
+    // requested only by this test, so scoping the count to it makes +1 hold no
+    // matter what else is running. same assertion, just measured on our own
+    // product rather than the global total.
+    const search = page.getByRole("textbox", { name: "Search" });
+    if (await search.count()) {
+      await search.fill(targetApi);
+    }
+
     // the total, not the visible rows: the table pages at 20, so a bare count
     // stops growing once the first page is full and this test would then never
     // see its own request arrive. wait for the body to render before taking the

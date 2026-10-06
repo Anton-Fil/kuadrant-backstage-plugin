@@ -67,7 +67,20 @@ export default defineConfig({
       name: "kuadrant",
       dependencies: ["smoke-test"],
       testMatch: "**/playwright/e2e/**/*.spec.ts",
-      testIgnore: "**/playwright/e2e/smoke-test.spec.ts",
+      // happy-path runs alone in its own project (below): it walks real shared
+      // state end-to-end and does exact-count asserts, so a concurrent spec
+      // creating/deleting keys or products breaks it. Exclude it here.
+      testIgnore: [
+        "**/playwright/e2e/smoke-test.spec.ts",
+        "**/playwright/e2e/kuadrant-happy-path.spec.ts",
+      ],
+    },
+    {
+      // Depends on "kuadrant" -> runs only after the whole suite finishes, so
+      // nothing else is mutating cluster state while it counts keys/products.
+      name: "kuadrant-happy-path",
+      dependencies: ["kuadrant"],
+      testMatch: "**/playwright/e2e/kuadrant-happy-path.spec.ts",
     },
   ],
 });
