@@ -1,4 +1,6 @@
-import { test, expect, Page } from "../fixtures/test";
+import { test as baseTest, expect, Page } from "../fixtures/test";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { loginAs } from "../support/auth/login-as";
 import {
   TIMEOUTS,
@@ -7,12 +9,54 @@ import {
   waitForApiKeysPageReady,
   seedPendingApiKeyRequest,
   generateTestId,
+  waitForApiKeyRow,
 } from "../utils/kuadrant-helpers";
 
 // demo APIProducts seeded by setup-cluster.sh, named so a test can seed a
 // request against an api with a known owner.
-const owner1Api = "owner1-inventory-api";
+const owner1Api = "owner1-payment-api";
 const owner2Api = "owner2-shipping-api";
+const execFileAsync = promisify(execFile);
+
+// Each test owns its seeded requests and removes them even when an assertion
+// fails. This keeps repeated parallel runs from filling the shared queue.
+const test = baseTest.extend<{
+  seedRequest: (
+    useCase: string,
+    apiProductName: string,
+    consumer?: string,
+  ) => Promise<void>;
+}>({
+  seedRequest: async ({ browser }, use) => {
+    const created: Array<{ namespace: string; name: string }> = [];
+    await use(async (useCase, apiProductName, consumer) => {
+      created.push(
+        await seedPendingApiKeyRequest(
+          browser,
+          useCase,
+          apiProductName,
+          consumer,
+        ),
+      );
+    });
+    for (const key of created) {
+      await execFileAsync(
+        "kubectl",
+        [
+          "delete",
+          "apikey",
+          key.name,
+          "-n",
+          key.namespace,
+          "--ignore-not-found=true",
+          "--wait=false",
+          "--request-timeout=10s",
+        ],
+        { timeout: 15000 },
+      );
+    }
+  },
+});
 
 /**
  * Filter the current table when it renders a search box.
@@ -322,20 +366,10 @@ test.describe("Kuadrant Permissions Matrix", () => {
 
     test("kuadrant.apikey.approve - admin CAN see approval page", async ({
       page,
-      browser,
+      seedRequest,
     }) => {
-      // seed a request first: a heading renders whether or not the admin can
-      // actually read anyone's requests, so the heading alone proved nothing.
-      // owner2's api, to show the admin is not limited to their own. seed as
-      // consumer2 so this row is distinct from the consumer1 row the sibling
-      // "admin CAN approve" test approves - otherwise, under parallel workers,
-      // that approval could remove the very row this test asserts is visible.
-      await seedPendingApiKeyRequest(
-        browser,
-        `admin sees pending ${generateTestId()}`,
-        owner2Api,
-        "consumer2",
-      );
+      const useCase = `admin sees pending ${generateTestId()}`;
+      await seedRequest(useCase, owner2Api, "consumer2");
 
       await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-key-approval");
@@ -349,31 +383,21 @@ test.describe("Kuadrant Permissions Matrix", () => {
         "Admin should see API Key Approval page",
       ).toBeVisible({ timeout: TIMEOUTS.SLOW });
 
-      // the queue pages at 20 rows, so narrow to the seeded api first -
-      // otherwise a fresh request can sit off the visible page.
-      await narrowTable(page, owner2Api);
-
+      const requestRow = await waitForApiKeyRow(page, useCase, owner2Api);
+      await expect(requestRow).toContainText(owner2Api);
+      await expect(requestRow).toContainText("consumer2");
       await expect(
-        page
-          .locator("tbody tr")
-          .filter({ hasText: owner2Api })
-          .filter({ hasText: /consumer2/i })
-          .first(),
-        "Admin should see consumer2's pending request for owner2's api",
-      ).toBeVisible({ timeout: TIMEOUTS.VERY_SLOW });
+        requestRow.getByText("Pending", { exact: true }),
+      ).toBeVisible();
     });
 
     test("kuadrant.apikey.approve - owner CAN see approval page", async ({
       page,
-      browser,
+      seedRequest,
     }) => {
-      // owner1's own api: an approval queue only carries requests for apis the
-      // approver owns, so seeding against anything else proves nothing here.
-      await seedPendingApiKeyRequest(
-        browser,
-        `owner sees pending ${generateTestId()}`,
-        owner1Api,
-      );
+      const useCase = `owner sees pending ${generateTestId()}`;
+      // Inventory approves automatically; payment requires owner approval.
+      await seedRequest(useCase, owner1Api);
 
       await loginAs(page, "owner1@kuadrant.local");
       await page.goto("/kuadrant/api-key-approval");
@@ -387,14 +411,11 @@ test.describe("Kuadrant Permissions Matrix", () => {
         "Owner should see API Key Approval page",
       ).toBeVisible({ timeout: TIMEOUTS.SLOW });
 
-      // the queue pages at 20 rows, so narrow to the seeded api first -
-      // otherwise a fresh request can sit off the visible page.
-      await narrowTable(page, owner1Api);
-
+      const requestRow = await waitForApiKeyRow(page, useCase, owner1Api);
+      await expect(requestRow).toContainText(owner1Api);
       await expect(
-        page.locator("tbody tr").filter({ hasText: owner1Api }).first(),
-        "Owner should see the pending request for their own api",
-      ).toBeVisible({ timeout: TIMEOUTS.VERY_SLOW });
+        requestRow.getByText("Pending", { exact: true }),
+      ).toBeVisible();
     });
 
     test("kuadrant.apikey.approve - consumer CANNOT access approval page", async ({
@@ -550,46 +571,23 @@ test.describe("Kuadrant Permissions Matrix", () => {
 
     test("admin CAN approve requests for any owner's APIs", async ({
       page,
-      browser,
+      seedRequest,
     }) => {
-      // this test used to pass with nothing to approve. seed a request against
-      // an api the admin does not own, so the approval is exercised end to end
-      // and specifically across an ownership boundary. seed as consumer1 and
-      // approve only consumer1's rows below, so this test and the sibling "admin
-      // CAN see" test (which watches consumer2's row) never touch each other's
-      // requests under parallel workers.
-      await seedPendingApiKeyRequest(
-        browser,
-        `admin approves ${generateTestId()}`,
-        owner2Api,
-        "consumer1",
-      );
+      // Seed a distinct request so parallel tests cannot change which row this
+      // test approves or checks afterward.
+      const useCase = `admin approves ${generateTestId()}`;
+      await seedRequest(useCase, owner2Api, "consumer1");
 
       await loginAs(page, "admin@kuadrant.local");
       await page.goto("/kuadrant/api-key-approval");
       await waitForApiKeysPageReady(page);
 
-      // the queue pages at 20 rows and requests accumulate across runs, so a
-      // freshly seeded one can land off the visible page. narrow with the
-      // table's own search first, then identify by count rather than by a
-      // single row: approving one should remove exactly one from the queue.
-      await narrowTable(page, owner2Api);
-
-      const pendingRows = page
-        .locator("tbody tr")
-        .filter({ hasText: owner2Api })
-        .filter({ hasText: /consumer1/i })
-        .filter({ has: page.getByRole("button", { name: /^approve$/i }) });
-
-      await expect(
-        pendingRows.first(),
-        "the seeded request should be waiting for the admin",
-      ).toBeVisible({ timeout: TIMEOUTS.VERY_SLOW });
-      const before = await pendingRows.count();
-
-      const approveButton = pendingRows
-        .first()
-        .getByRole("button", { name: /^approve$/i });
+      const requestRow = await waitForApiKeyRow(page, useCase, owner2Api);
+      await expect(requestRow).toContainText(owner2Api);
+      await expect(requestRow).toContainText("consumer1");
+      const approveButton = requestRow.getByRole("button", {
+        name: /^approve$/i,
+      });
       await expect(
         approveButton,
         "Admin approve button should be enabled",
@@ -610,22 +608,15 @@ test.describe("Kuadrant Permissions Matrix", () => {
         "the confirmation should close once the approval is accepted",
       ).toBeHidden({ timeout: TIMEOUTS.VERY_SLOW });
 
-      // approving takes that request out of the pending queue. the search is
-      // re-applied on each poll because the table clears it when it refetches,
-      // which would otherwise page the remaining rows back out of sight.
-      await expect
-        .poll(
-          async () => {
-            await narrowTable(page, owner2Api);
-            return pendingRows.count();
-          },
-          {
-            timeout: TIMEOUTS.VERY_SLOW,
-            message:
-              "approving should remove exactly one request from the pending queue",
-          },
-        )
-        .toBe(before - 1);
+      await expect(async () => {
+        const approvedRow = await waitForApiKeyRow(page, useCase, owner2Api);
+        await expect(
+          approvedRow.getByText("Approved", { exact: true }),
+        ).toBeVisible({ timeout: TIMEOUTS.QUICK });
+        await expect(
+          approvedRow.getByRole("button", { name: /^approve$/i }),
+        ).toHaveCount(0);
+      }).toPass({ timeout: TIMEOUTS.VERY_SLOW });
     });
   });
 

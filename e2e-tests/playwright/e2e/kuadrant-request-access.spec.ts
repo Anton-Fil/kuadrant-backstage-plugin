@@ -2,14 +2,15 @@ import { test, expect } from "../fixtures/test";
 import { loginAs } from "../support/auth/login-as";
 import {
   TIMEOUTS,
-  apiKeyTableTotal,
+  requestApiKey,
+  generateTestId,
+  waitForApiKeyRow,
   waitForApiKeysPageReady,
   selectFirstOption,
   openSelect,
 } from "../utils/kuadrant-helpers";
 
-// a demo APIProduct seeded by setup-cluster.sh. named so a test can narrow the
-// table to it rather than counting every row on a paginated page.
+// A demo APIProduct seeded by setup-cluster.sh.
 const targetApi = "owner1-payment-api";
 
 /**
@@ -506,58 +507,8 @@ test.describe("Request Access Dialog - My API Keys Page", () => {
     page,
   }) => {
     await loginAs(page, "consumer1@kuadrant.local");
-    await page.goto("/kuadrant/my-api-keys");
-    await waitForApiKeysPageReady(page);
-
-    // narrow the table to targetApi before taking the baseline: consumer1's key
-    // table is shared state, and under fullyParallel other specs create consumer1
-    // keys for other products concurrently - so a whole-table +1 count sees their
-    // rows too and flakes (Expected 14, Received 15). owner1-payment-api is
-    // requested only by this test, so scoping the count to it makes +1 hold no
-    // matter what else is running. same assertion, just measured on our own
-    // product rather than the global total.
-    const search = page.getByRole("textbox", { name: "Search" });
-    if (await search.count()) {
-      await search.fill(targetApi);
-    }
-
-    // the total, not the visible rows: the table pages at 20, so a bare count
-    // stops growing once the first page is full and this test would then never
-    // see its own request arrive. wait for the body to render before taking the
-    // baseline - reading it mid-load returns 0 and the comparison is then
-    // against a number that was never true.
-    await expect(
-      page
-        .locator("table tbody tr")
-        .first()
-        .or(page.getByText(/no api keys found/i)),
-      "the keys table should finish loading before the baseline is taken",
-    ).toBeVisible({ timeout: TIMEOUTS.SLOW });
-    const initialCount = await apiKeyTableTotal(page);
-
-    const requestButton = page.getByTestId("request-access-button");
-    await requestButton.click();
-
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible({ timeout: TIMEOUTS.DEFAULT });
-
-    // select API and tier
-    await selectFirstOption(page, dialog, "api-select", targetApi);
-
-    await selectFirstOption(page, dialog, "tier-select");
-
-    // submit
-    const submitButton = dialog.getByTestId("submit-button");
-    await submitButton.click();
-
-    // wait for dialog to close
-    await expect(dialog).not.toBeVisible({ timeout: TIMEOUTS.SLOW });
-
-    await expect
-      .poll(() => apiKeyTableTotal(page), {
-        timeout: TIMEOUTS.SLOW,
-        message: "Table should have one more row after successful request",
-      })
-      .toBe(initialCount + 1);
+    const useCase = `table refresh ${generateTestId()}`;
+    await requestApiKey(page, useCase, targetApi);
+    await waitForApiKeyRow(page, useCase);
   });
 });

@@ -242,6 +242,58 @@ export async function apiKeyTableTotal(page: Page): Promise<number> {
   return page.locator("table tbody tr").count();
 }
 
+/** Find a key by its unique use case in the table's existing detail panels. */
+export async function waitForApiKeyRow(
+  page: Page,
+  useCase: string,
+  apiProductName?: string,
+): Promise<Locator> {
+  if (apiProductName) {
+    const productFilter = page.getByRole("checkbox", {
+      name: new RegExp(`^${apiProductName} `),
+    });
+    await expect(productFilter).toHaveCount(1, { timeout: TIMEOUTS.VERY_SLOW });
+    if (!(await productFilter.isVisible())) {
+      await page.getByText("API Product", { exact: true }).first().click();
+    }
+    await productFilter.check();
+  }
+
+  let rows = page.locator("table tbody tr").filter({
+    has: page.getByRole("button", { name: /detail panel/i }),
+  });
+  if (apiProductName) rows = rows.filter({ hasText: apiProductName });
+  const nextPage = page.getByRole("button", { name: /next page/i });
+  let found: Locator | undefined;
+
+  await expect(async () => {
+    await expect(page.locator("table").first()).toBeVisible({ timeout: 1000 });
+    for (let index = 0; index < (await rows.count()); index++) {
+      const row = rows.nth(index);
+      const toggle = row.getByRole("button", { name: /detail panel/i });
+      const panel = row.locator("xpath=following-sibling::tr[1]");
+      if (!(await panel.getByText("Use Case", { exact: true }).isVisible())) {
+        await toggle.click();
+        await expect(panel.getByText("Use Case", { exact: true })).toBeVisible({
+          timeout: 1000,
+        });
+      }
+      if (await panel.getByText(useCase, { exact: true }).isVisible()) {
+        found = row;
+        return;
+      }
+      await toggle.click();
+    }
+    if ((await nextPage.count()) && (await nextPage.isEnabled())) {
+      await nextPage.click();
+    }
+    throw new Error(`API key with use case "${useCase}" is not visible yet`);
+  }).toPass({ timeout: TIMEOUTS.VERY_SLOW, intervals: [300, 500, 1000] });
+  if (!found)
+    throw new Error(`API key with use case "${useCase}" was not found`);
+  return found;
+}
+
 /**
  * Open a MUI Select and wait until its options are on screen.
  *
@@ -319,12 +371,13 @@ export async function selectFirstOption(
  * @param page - The Playwright Page object
  * @param useCase - Use-case text, worth making unique per test so the resulting
  *   row can be identified.
+ * @returns The namespace and name assigned to the created API key.
  */
 export async function requestApiKey(
   page: Page,
   useCase: string,
   apiProductName?: string,
-): Promise<void> {
+): Promise<{ namespace: string; name: string }> {
   await page.goto("/kuadrant/my-api-keys");
   await waitForApiKeysPageReady(page);
 
@@ -338,12 +391,24 @@ export async function requestApiKey(
   await selectFirstOption(page, dialog, "tier-select");
 
   await dialog.getByTestId("usecase-input").fill(useCase);
-  await dialog.getByTestId("submit-button").click();
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (res) =>
+        new URL(res.url()).pathname.endsWith("/api/kuadrant/requests") &&
+        res.request().method() === "POST",
+    ),
+    dialog.getByTestId("submit-button").click(),
+  ]);
+  expect(response.status(), "API key request should be created").toBe(201);
+  const created = (await response.json()) as {
+    metadata: { namespace: string; name: string };
+  };
 
   await expect(
     dialog,
     "Request Access dialog should close once the request is accepted",
   ).not.toBeVisible({ timeout: TIMEOUTS.SLOW });
+  return created.metadata;
 }
 
 /**
@@ -369,7 +434,7 @@ export async function seedPendingApiKeyRequest(
   useCase: string,
   apiProductName: string,
   consumer: string = "consumer1",
-): Promise<void> {
+): Promise<{ namespace: string; name: string }> {
   // a manually created context inherits nothing from the config's `use` block,
   // so mirror the baseURL (loginAs starts with a relative goto) and the https
   // override the rest of the suite runs with.
@@ -380,7 +445,7 @@ export async function seedPendingApiKeyRequest(
   try {
     const page = await context.newPage();
     await loginAs(page, consumer);
-    await requestApiKey(page, useCase, apiProductName);
+    return await requestApiKey(page, useCase, apiProductName);
   } finally {
     await context.close();
   }

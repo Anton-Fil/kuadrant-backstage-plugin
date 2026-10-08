@@ -3,6 +3,7 @@ import { loginAs } from "../support/auth/login-as";
 import {
   waitForKuadrantPageReady,
   requestApiKey,
+  waitForApiKeyRow,
   generateTestId,
   TIMEOUTS,
 } from "../utils/kuadrant-helpers";
@@ -123,22 +124,18 @@ test.describe("Kuadrant Plugin", () => {
   });
 
   test("should navigate to API Key detail page", async ({ page }) => {
-    // seed a key of our own rather than depending on the environment having
-    // one: with nothing to click, this test used to pass without navigating
-    // anywhere.
-    await requestApiKey(page, `detail navigation ${generateTestId()}`);
-
-    const viewDetailsButton = page
-      .getByRole("button", { name: /view details/i })
-      .first();
-    await expect(
-      viewDetailsButton,
-      "the key just requested should offer a view details button",
-    ).toBeVisible({ timeout: TIMEOUTS.SLOW });
+    const useCase = `detail navigation ${generateTestId()}`;
+    const key = await requestApiKey(page, useCase);
+    const row = await waitForApiKeyRow(page, useCase);
+    const viewDetailsButton = row.getByRole("button", {
+      name: /view details/i,
+    });
     await viewDetailsButton.click();
 
-    // should navigate to detail page
-    await page.waitForURL(/\/kuadrant\/api-keys\/[^/]+\/[^/]+/);
+    await page.waitForURL(
+      (url) =>
+        url.pathname === `/kuadrant/api-keys/${key.namespace}/${key.name}`,
+    );
 
     // verify detail page content
     const breadcrumb = page.getByText("API keys").first();
@@ -148,17 +145,17 @@ test.describe("Kuadrant Plugin", () => {
   test("should display API Key detail page with correct sections", async ({
     page,
   }) => {
-    await requestApiKey(page, `detail sections ${generateTestId()}`);
-
-    const viewDetailsButton = page
-      .getByRole("button", { name: /view details/i })
-      .first();
-    await expect(
-      viewDetailsButton,
-      "the key just requested should offer a view details button",
-    ).toBeVisible({ timeout: TIMEOUTS.SLOW });
+    const useCase = `detail sections ${generateTestId()}`;
+    const key = await requestApiKey(page, useCase);
+    const row = await waitForApiKeyRow(page, useCase);
+    const viewDetailsButton = row.getByRole("button", {
+      name: /view details/i,
+    });
     await viewDetailsButton.click();
-    await page.waitForURL(/\/kuadrant\/api-keys\/[^/]+\/[^/]+/);
+    await page.waitForURL(
+      (url) =>
+        url.pathname === `/kuadrant/api-keys/${key.namespace}/${key.name}`,
+    );
 
     // verify detail page sections
     const detailsCard = page.getByText("API Key Details");
