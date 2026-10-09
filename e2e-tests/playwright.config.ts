@@ -45,10 +45,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
     ...devices["Desktop Chrome"],
     viewport: { width: 1920, height: 1080 },
-    video: {
-      mode: "on",
-      size: { width: 1920, height: 1080 },
-    },
+    video: "off",
     actionTimeout: 10 * 1000,
     navigationTimeout: 50 * 1000,
   },
