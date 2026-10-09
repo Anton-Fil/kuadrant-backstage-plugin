@@ -136,6 +136,14 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
+      - name: Cache Yarn packages
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # ratchet:actions/cache@v4.2.4
+        with:
+          path: ~/.yarn/berry/cache
+          key: ${{ runner.os }}-yarn-${{ hashFiles('yarn.lock', 'e2e-tests/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
       # Download to /tmp: this repo has an oinc/ directory, so curl -o oinc fails
       # with "Is a directory" (console-plugin does not have that path).
       - name: Install oinc
@@ -170,8 +178,22 @@ jobs:
           cd e2e-tests
           yarn playwright install chromium
 
-      - name: Create oinc cluster
-        run: yarn oinc:cluster
+      - name: Create oinc cluster and build Backstage
+        run: |
+          yarn oinc:cluster &
+          cluster_pid=$!
+          yarn build &
+          build_pid=$!
+
+          cluster_status=0
+          build_status=0
+          wait "$cluster_pid" || cluster_status=$?
+          wait "$build_pid" || build_status=$?
+
+          if [ "$cluster_status" -ne 0 ] || [ "$build_status" -ne 0 ]; then
+            echo "Cluster setup exited with $cluster_status; build exited with $build_status"
+            exit 1
+          fi
 
       - name: Verify Kuadrant and MCP Gateway
         run: |
@@ -181,9 +203,6 @@ jobs:
           kubectl api-resources --api-group=mcp.kuadrant.io
           kubectl -n kuadrant-system wait --timeout=180s --for=condition=Available deployment/developer-portal-controller
           oinc status || true
-
-      - name: Build Backstage
-        run: yarn build
 
       - name: Start Backstage
         run: |
